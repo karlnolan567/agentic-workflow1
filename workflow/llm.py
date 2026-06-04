@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from workflow.context import demo_context_prompt_prefix
 from workflow.prompts import PERSONA_BY_ROUTE, TRIAGE_SYSTEM_PROMPT
 from workflow.routes import VALID_ROUTES
 
@@ -87,6 +88,10 @@ class LLMClient(Protocol):
         self, route: str, conversation_history: list[dict], user_text: str
     ) -> str: ...
 
+    def stream_persona(
+        self, route: str, conversation_history: list[dict], user_text: str
+    ): ...
+
 
 class GeminiClient:
     def triage(self, user_text: str) -> str:
@@ -101,19 +106,36 @@ class GeminiClient:
         )
         return response.text or ""
 
+    def _persona_system_instruction(self, route: str) -> str:
+        return demo_context_prompt_prefix() + PERSONA_BY_ROUTE[route]
+
     def generate_persona(
         self, route: str, conversation_history: list[dict], user_text: str
     ) -> str:
-        system_instruction = PERSONA_BY_ROUTE[route]
         response = get_client().models.generate_content(
             model=get_model_name(),
             contents=_build_persona_contents(conversation_history, user_text),
             config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
+                system_instruction=self._persona_system_instruction(route),
                 temperature=PERSONA_TEMPERATURE,
             ),
         )
         return response.text or ""
+
+    def stream_persona(
+        self, route: str, conversation_history: list[dict], user_text: str
+    ):
+        stream = get_client().models.generate_content_stream(
+            model=get_model_name(),
+            contents=_build_persona_contents(conversation_history, user_text),
+            config=types.GenerateContentConfig(
+                system_instruction=self._persona_system_instruction(route),
+                temperature=PERSONA_TEMPERATURE,
+            ),
+        )
+        for chunk in stream:
+            if chunk.text:
+                yield chunk.text
 
 
 def parse_triage_response(raw: str) -> str | None:

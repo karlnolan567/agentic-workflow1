@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from workflow.escalation import spawn_triage_payload_writer
+from workflow.kb import append_kb_citations
 from workflow.llm import GeminiClient, LLMClient, parse_triage_response
 from workflow.routes import ESCALATE_COMMAND, EXIT_VALUES, LOCKOUT_MESSAGE, Route
 from workflow.routing_hints import looks_like_misc_question
@@ -106,11 +107,18 @@ def phase_b(session: SessionState, user_input: str, client: LLMClient) -> TurnRe
 
 
 def phase_c(
-    session: SessionState, user_input: str, route: str, client: LLMClient
+    session: SessionState,
+    user_input: str,
+    route: str,
+    client: LLMClient,
+    *,
+    append_citations: bool = True,
 ) -> str:
     reply = client.generate_persona(
         route, session.conversation_history, user_input
     )
+    if append_citations:
+        reply = append_kb_citations(reply, user_input)
     session.conversation_history.append(
         {"role": "user", "parts": [user_input]}
     )
@@ -134,6 +142,36 @@ def process_turn(
 
     reply = phase_c(session, user_input, route_result, llm)
     return TurnResult(TurnOutcome.RESPONDED, reply)
+
+
+def process_turn_stream(
+    session: SessionState, user_input: str, client: LLMClient | None = None
+):
+    """Yield (event_type, payload) tuples for SSE. Phase C streams tokens."""
+    early = phase_a(session, user_input)
+    if early is not None:
+        yield ("done", early)
+        return
+
+    llm = client or GeminiClient()
+    route_result = phase_b(session, user_input, llm)
+    if isinstance(route_result, TurnResult):
+        yield ("done", route_result)
+        return
+
+    route = route_result
+    chunks: list[str] = []
+    for token in llm.stream_persona(
+        route, session.conversation_history, user_input
+    ):
+        chunks.append(token)
+        yield ("token", token)
+
+    reply = "".join(chunks)
+    reply = append_kb_citations(reply, user_input)
+    session.conversation_history.append({"role": "user", "parts": [user_input]})
+    session.conversation_history.append({"role": "model", "parts": [reply]})
+    yield ("done", TurnResult(TurnOutcome.RESPONDED, reply))
 
 
 ESCALATION_HINT = (

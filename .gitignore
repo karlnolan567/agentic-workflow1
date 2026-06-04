@@ -6,4 +6,9 @@ __pycache__/
 venv/
 transcripts/
 triage_payloads/
+data/app.db
+web/node_modules/
+web/.next/
+web/out/
+web/.env.local
 .pytest_cache/

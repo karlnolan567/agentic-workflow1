@@ -25,6 +25,13 @@ class FakeLLM:
         self.persona_calls += 1
         return self.reply
 
+    def stream_persona(
+        self, route: str, conversation_history: list, user_text: str
+    ):
+        self.persona_calls += 1
+        for word in self.reply.split():
+            yield word + " "
+
 
 class TestParseTriage(unittest.TestCase):
     def test_valid_route(self):

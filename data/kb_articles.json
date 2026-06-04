@@ -1,0 +1,26 @@
+[
+  {
+    "id": "kb-refund",
+    "title": "Refund policy",
+    "keywords": ["refund", "charge", "invoice", "billing", "payment", "charged"],
+    "url": "https://docs.example.com/billing/refunds"
+  },
+  {
+    "id": "kb-login",
+    "title": "Login troubleshooting",
+    "keywords": ["login", "password", "sign in", "authentication", "locked out"],
+    "url": "https://docs.example.com/support/login"
+  },
+  {
+    "id": "kb-export",
+    "title": "Export your data",
+    "keywords": ["export", "download", "data", "csv", "backup"],
+    "url": "https://docs.example.com/features/export"
+  },
+  {
+    "id": "kb-escalate",
+    "title": "Contact human support",
+    "keywords": ["human", "agent", "escalate", "representative"],
+    "url": "https://docs.example.com/support/human"
+  }
+]
